@@ -1,11 +1,13 @@
 import 'dotenv/config';
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import path from 'path';
 import sentimentRoutes from './routes/sentiment';
 import stocksRoutes from './routes/stocks';
 import healthRoutes from './routes/health';
 
 const app = express();
+const isProduction = process.env.NODE_ENV === 'production';
 const PORT = process.env.PORT || 3001;
 
 // CORS configuration
@@ -50,38 +52,57 @@ app.use('/api/health', healthRoutes);
 app.use('/api/sentiment', sentimentRoutes);
 app.use('/api/stocks', stocksRoutes);
 
-// Root endpoint
-app.get('/', (req: Request, res: Response) => {
-  res.json({
-    name: 'Metal Industry Sentiment Analysis API',
-    version: '1.0.0',
-    endpoints: {
-      health: '/api/health',
-      sentiment: {
-        overview: 'GET /api/sentiment',
-        byStock: 'GET /api/sentiment/:symbol',
-        history: 'GET /api/sentiment/:symbol/history',
-        refresh: 'POST /api/sentiment/refresh',
-        status: 'GET /api/sentiment/status/info'
-      },
-      stocks: {
-        all: 'GET /api/stocks',
-        bySymbol: 'GET /api/stocks/:symbol',
-        correlation: 'GET /api/stocks/:symbol/correlation',
-        symbols: 'GET /api/stocks/list/symbols'
-      }
-    }
-  });
-});
+// In production, serve the React frontend
+if (isProduction) {
+  // Serve static files from the frontend build directory
+  const frontendPath = path.join(__dirname, '../../frontend/dist');
+  app.use(express.static(frontendPath));
 
-// 404 handler
-app.use((req: Request, res: Response) => {
-  res.status(404).json({
-    error: 'Not Found',
-    message: `Cannot ${req.method} ${req.path}`,
-    availableEndpoints: ['/api/health', '/api/sentiment', '/api/stocks']
+  // Handle SPA routing - return index.html for non-API routes
+  app.get('*', (req: Request, res: Response) => {
+    // Don't serve index.html for API routes
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: `Cannot ${req.method} ${req.path}`
+      });
+    }
+    res.sendFile(path.join(frontendPath, 'index.html'));
   });
-});
+} else {
+  // Development: Root endpoint shows API info
+  app.get('/', (req: Request, res: Response) => {
+    res.json({
+      name: 'Metal Industry Sentiment Analysis API',
+      version: '1.0.0',
+      endpoints: {
+        health: '/api/health',
+        sentiment: {
+          overview: 'GET /api/sentiment',
+          byStock: 'GET /api/sentiment/:symbol',
+          history: 'GET /api/sentiment/:symbol/history',
+          refresh: 'POST /api/sentiment/refresh',
+          status: 'GET /api/sentiment/status/info'
+        },
+        stocks: {
+          all: 'GET /api/stocks',
+          bySymbol: 'GET /api/stocks/:symbol',
+          correlation: 'GET /api/stocks/:symbol/correlation',
+          symbols: 'GET /api/stocks/list/symbols'
+        }
+      }
+    });
+  });
+
+  // 404 handler for development
+  app.use((req: Request, res: Response) => {
+    res.status(404).json({
+      error: 'Not Found',
+      message: `Cannot ${req.method} ${req.path}`,
+      availableEndpoints: ['/api/health', '/api/sentiment', '/api/stocks']
+    });
+  });
+}
 
 // Global error handler
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {

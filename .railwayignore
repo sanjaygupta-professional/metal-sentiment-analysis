@@ -1,0 +1,23 @@
+# Ignore node_modules - Railway will install fresh
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# Ignore build artifacts - Railway will build fresh
+backend/dist/
+frontend/dist/
+
+# Ignore logs and environment files
+*.log
+.env
+.env.local
+.env.*.local
+
+# Ignore git directory
+.git/
+
+# Ignore development files
+.vscode/
+.idea/
+*.md
+!README.md

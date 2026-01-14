@@ -10,29 +10,17 @@ const app = express();
 const isProduction = process.env.NODE_ENV === 'production';
 const PORT = process.env.PORT || 3001;
 
-// CORS configuration
-const allowedOrigins = [
-  'http://localhost:5173',   // Vite dev server
-  'http://localhost:3000',   // Alternative dev port
-  process.env.FRONTEND_URL   // Production frontend URL
-].filter(Boolean);
+// In production, serve static files FIRST (before any other middleware)
+// This prevents CORS or other middleware from interfering with asset requests
+if (isProduction) {
+  const frontendPath = path.resolve(__dirname, '../../frontend/dist');
+  console.log('Serving static files from:', frontendPath);
+  app.use(express.static(frontendPath));
+}
 
+// CORS configuration - only needed for API routes
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      // In development, allow all origins
-      if (process.env.NODE_ENV !== 'production') {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    }
-  },
+  origin: true, // Reflect the request origin - works for same-origin and cross-origin
   credentials: true
 }));
 
@@ -40,7 +28,7 @@ app.use(cors({
 app.use(express.json());
 
 // Request logging in development
-if (process.env.NODE_ENV !== 'production') {
+if (!isProduction) {
   app.use((req: Request, res: Response, next: NextFunction) => {
     console.log(`${new Date().toISOString()} ${req.method} ${req.path}`);
     next();
@@ -52,15 +40,10 @@ app.use('/api/health', healthRoutes);
 app.use('/api/sentiment', sentimentRoutes);
 app.use('/api/stocks', stocksRoutes);
 
-// In production, serve the React frontend
+// In production, handle SPA routing - return index.html for non-API routes
 if (isProduction) {
-  // Serve static files from the frontend build directory
-  // __dirname = /app/backend/dist, so ../../frontend/dist = /app/frontend/dist
   const frontendPath = path.resolve(__dirname, '../../frontend/dist');
-  console.log('Serving static files from:', frontendPath);
-  app.use(express.static(frontendPath));
 
-  // Handle SPA routing - return index.html for non-API routes
   app.get('*', (req: Request, res: Response) => {
     // Don't serve index.html for API routes
     if (req.path.startsWith('/api')) {

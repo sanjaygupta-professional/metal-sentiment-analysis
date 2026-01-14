@@ -55,8 +55,8 @@ app.use('/api/stocks', stocksRoutes);
 // In production, serve the React frontend
 if (isProduction) {
   // Serve static files from the frontend build directory
-  // Use process.cwd() for reliable path resolution on Railway (cwd = /app)
-  const frontendPath = path.join(process.cwd(), 'frontend/dist');
+  // __dirname = /app/backend/dist, so ../../frontend/dist = /app/frontend/dist
+  const frontendPath = path.resolve(__dirname, '../../frontend/dist');
   console.log('Serving static files from:', frontendPath);
   app.use(express.static(frontendPath));
 
